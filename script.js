@@ -312,80 +312,41 @@ function naturalSort(a, b) {
 
 function preloadImages() {
 
-    const promises =
-        IMAGE_FILES.map(
-            filename => {
+    const promises = IMAGE_FILES.map(filename => {
 
-                return new Promise(
-                    resolve => {
+        return new Promise((resolve, reject) => {
 
-                        const image =
-                            new Image();
+            const image = new Image();
 
+            const path = "./img/" + filename;
 
-                        image.onload =
-                            () => {
+            image.onload = () => {
 
-                                console.log(
-                                    "Loaded:",
-                                    filename
-                                );
+                console.log("Loaded:", path);
 
-                                resolve(true);
-                            };
+                resolve();
+            };
 
+            image.onerror = () => {
 
-                        image.onerror =
-                            () => {
-
-                                console.error(
-                                    "Could not load:",
-                                    filename
-                                );
-
-                                resolve(false);
-                            };
-
-
-                        image.src =
-                            "img/" +
-                            encodeURIComponent(
-                                filename
-                            );
-                    }
+                console.error(
+                    "FAILED TO LOAD:",
+                    path
                 );
-            }
-        );
 
-
-    return Promise
-        .all(promises)
-        .then(results => {
-
-            /*
-                We need at least one image.
-
-                Normally all files should load.
-            */
-
-            const successful =
-                results.filter(Boolean);
-
-
-            if (
-                successful.length === 0
-            ) {
-
-                throw new Error(
-                    "No images could be loaded."
+                reject(
+                    new Error(
+                        "Could not load " + path
+                    )
                 );
-            }
+            };
 
-
-            console.log(
-                `${successful.length}/${IMAGE_FILES.length} images loaded.`
-            );
+            image.src = path;
         });
+    });
+
+
+    return Promise.all(promises);
 }
 
 
