@@ -25,7 +25,6 @@ body {
 ========================================================= */
 
 #background {
-
     position: fixed;
 
     inset: 0;
@@ -40,9 +39,6 @@ body {
     background-size: cover;
 
     z-index: 0;
-
-    transition:
-        background-image 1s ease;
 }
 
 
@@ -51,7 +47,6 @@ body {
 ========================================================= */
 
 #image-layer {
-
     position: fixed;
 
     inset: 0;
@@ -66,26 +61,44 @@ body {
 
 
 /* =========================================================
-   INDIVIDUAL IMAGE
+   MOVING IMAGE
 ========================================================= */
 
 .moving-image {
-
     position: absolute;
 
     /*
-        Smaller than before.
+        Previous desktop maximum:
+            210px
 
-        Every image gets the same bounding box.
+        +50%:
+            315px
     */
 
-    width: min(32vw, 240px);
-    height: min(32vw, 240px);
+    width: min(45vw, 315px);
+    height: min(45vw, 315px);
 
-    /*
-        Keep the actual image inside the bounding box
-        without changing its aspect ratio.
-    */
+    left: 0;
+    top: 0;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    will-change: transform;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   IMAGE
+========================================================= */
+
+.moving-image img {
+    width: 100%;
+    height: 100%;
 
     object-fit: contain;
 
@@ -99,30 +112,15 @@ body {
     pointer-events: none;
 
     /*
-        Prevent blurry rendering caused by some
-        browsers when continuously moving images.
+        Images are always properly oriented.
     */
 
-    will-change: transform;
-
-    /*
-        Slight shadow so images remain visible
-        against bright backgrounds.
-    */
+    transform: rotate(0deg);
 
     filter:
         drop-shadow(
-            0 4px 12px rgba(0, 0, 0, 0.45)
+            0 4px 10px rgba(0, 0, 0, 0.5)
         );
-
-    /*
-        Fade in when first created.
-    */
-
-    opacity: 0;
-
-    transition:
-        opacity 0.5s ease;
 }
 
 
@@ -131,7 +129,6 @@ body {
 ========================================================= */
 
 #loading {
-
     position: fixed;
 
     left: 50%;
@@ -144,21 +141,98 @@ body {
 
     font-family: Arial, sans-serif;
 
-    font-size: 18px;
+    font-size: 24px;
+
+    font-weight: bold;
+
+    text-align: center;
+
+    white-space: nowrap;
 
     z-index: 100;
 
     text-shadow:
-        0 2px 6px rgba(0, 0, 0, 0.8);
+        0 2px 8px rgba(0, 0, 0, 0.9);
 }
 
 
 /* =========================================================
-   ERROR SCREEN
+   PLAY BUTTON
+========================================================= */
+
+#play-button {
+    position: fixed;
+
+    left: 50%;
+    top: 50%;
+
+    transform:
+        translate(-50%, -50%);
+
+    z-index: 200;
+
+    display: none;
+
+    padding: 18px 45px;
+
+    border: 3px solid white;
+
+    border-radius: 12px;
+
+    background: rgba(0, 0, 0, 0.75);
+
+    color: white;
+
+    font-family: Arial, sans-serif;
+
+    font-size: 26px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+
+    user-select: none;
+
+    -webkit-user-select: none;
+
+    /*
+        Make tapping it comfortable on mobile.
+    */
+
+    min-width: 160px;
+    min-height: 65px;
+
+    transition:
+        background 0.15s ease,
+        transform 0.15s ease;
+}
+
+
+/* Hover only really matters on computers */
+
+#play-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+
+    transform:
+        translate(-50%, -50%)
+        scale(1.05);
+}
+
+
+/* Press feedback */
+
+#play-button:active {
+    transform:
+        translate(-50%, -50%)
+        scale(0.95);
+}
+
+
+/* =========================================================
+   FINAL ERROR SCREEN
 ========================================================= */
 
 #error-screen {
-
     position: fixed;
 
     inset: 0;
@@ -176,9 +250,7 @@ body {
     justify-content: center;
 }
 
-
 #error-screen img {
-
     width: 100%;
     height: 100%;
 
@@ -198,11 +270,29 @@ body {
 
 @media (max-width: 600px) {
 
+    /*
+        Previous mobile maximum:
+            150px
+
+        +50%:
+            225px
+    */
+
     .moving-image {
-
-        width: min(27vw, 150px);
-        height: min(27vw, 150px);
-
+        width: min(45vw, 225px);
+        height: min(45vw, 225px);
     }
 
+    #loading {
+        font-size: 20px;
+    }
+
+    #play-button {
+        font-size: 23px;
+
+        min-width: 150px;
+        min-height: 60px;
+
+        padding: 15px 35px;
+    }
 }

@@ -1,39 +1,151 @@
 /*
 ============================================================
-    LEA EXPERIMENT
+    LEA BIRTHDAY EXPERIMENT
 ============================================================
 
-    Images are automatically loaded from images.json.
+    Each number represents ONE moving object.
 
-    images.json is generated automatically by GitHub
-    Actions whenever files in the repository change.
+    Example:
 
-    Every image:
+        1lea.png
+        1lea2.png
 
-        - appears simultaneously
-        - starts at a random location
-        - has the same maximum dimensions
-        - preserves its aspect ratio
-        - moves independently
-        - bounces off the screen edges
-        - gets a new random direction after collisions
+    These are two frames of the SAME object.
+
+    The object has:
+
+        - one position
+        - one velocity
+        - constant speed
+        - random starting position
+        - random movement direction
+
+    The image itself is NEVER rotated.
+
+    Frames switch every 0.4 seconds.
+
+
+    LOADING:
+
+        The page preloads all images.
+
+        There is NO artificial delay.
+
+        As soon as everything has loaded:
+
+            "Loading!!...." disappears
+                    ↓
+                PLAY appears
+
+        Pressing PLAY starts:
+
+            - music
+            - first image
+            - movement
+            - object spawning
+
+
+    TIMELINE AFTER PLAY:
+
+        0s       Object #1
+        4s       Object #2
+        8s       Object #3
+        ...
+
+        30s      background2.jpg
+
+        Final object + 4s:
+
+                 music stops
+                 all images disappear
+                 error.png fills screen
 
 ============================================================
 */
 
 
 /* =========================================================
+   IMAGE FILES
+========================================================= */
+
+const IMAGE_FILES = [
+
+    "1lea.png",
+    "1lea2.png",
+
+    "2arthur.png",
+    "2arthur2.png",
+
+    "3savan.png",
+    "3savan2.png",
+
+    "4meg.png",
+
+    "5danila.png",
+    "5danila2.png",
+
+    "6anton.png",
+    "6anton2.png",
+
+    "7lea_pony.png",
+
+    "8donald.png",
+
+    "9art.png",
+    "9art2.png",
+
+    "10alexi_pony.png",
+
+    "11chat.png",
+    "11chat2.png",
+
+    "12copine.png",
+    "12copine2.png",
+
+    "13flupke.png"
+];
+
+
+/* =========================================================
    SETTINGS
 ========================================================= */
 
-const BACKGROUND_CHANGE_TIME = 30000;
+const OBJECT_INTERVAL = 4000;
+
 
 /*
-    Four seconds after ALL images have appeared,
-    the final screen is shown.
+    0.4 seconds between frames.
+*/
+
+const FLICKER_INTERVAL = 400;
+
+
+/*
+    Background changes 30 seconds after PLAY.
+*/
+
+const BACKGROUND_CHANGE_TIME = 30000;
+
+
+/*
+    Final screen appears 4 seconds after
+    the final object appears.
 */
 
 const FINAL_DELAY = 4000;
+
+
+/*
+    Previous speed:
+
+        1.8
+
+    +50%:
+
+        2.7
+*/
+
+const SPEED = 2.7;
 
 
 /* =========================================================
@@ -49,6 +161,9 @@ const background =
 const loading =
     document.getElementById("loading");
 
+const playButton =
+    document.getElementById("play-button");
+
 const errorScreen =
     document.getElementById("error-screen");
 
@@ -60,365 +175,278 @@ const music =
    STATE
 ========================================================= */
 
-let movingImages = [];
+let imageGroups = [];
 
-let finished = false;
+let movingObjects = [];
+
+let nextGroupIndex = 0;
 
 let animationFrame = null;
+
+let objectTimer = null;
 
 let backgroundTimer = null;
 
 let finalTimer = null;
 
+let finished = false;
 
-/* =========================================================
-   SPEED
-========================================================= */
-
-const MIN_SPEED = 0.7;
-const MAX_SPEED = 2.2;
+let started = false;
 
 
 /* =========================================================
-   RANDOM SPEED
+   GROUP FILES BY NUMBER
 ========================================================= */
 
-function randomSpeed() {
+function createGroups() {
 
-    const speed =
-        MIN_SPEED +
-        Math.random() *
-        (MAX_SPEED - MIN_SPEED);
+    const groups = new Map();
 
-    return Math.random() < 0.5
-        ? speed
-        : -speed;
+
+    for (const filename of IMAGE_FILES) {
+
+        /*
+            Extract the number at the beginning.
+
+            1lea.png       -> 1
+            1lea2.png      -> 1
+            10alexi...     -> 10
+        */
+
+        const match =
+            filename.match(/^(\d+)/);
+
+
+        if (!match) {
+
+            console.warn(
+                "Ignoring file:",
+                filename
+            );
+
+            continue;
+        }
+
+
+        const number =
+            parseInt(
+                match[1],
+                10
+            );
+
+
+        if (!groups.has(number)) {
+
+            groups.set(
+                number,
+                []
+            );
+        }
+
+
+        groups
+            .get(number)
+            .push(filename);
+    }
+
+
+    /*
+        Sort frames naturally.
+
+        This produces:
+
+            1lea.png
+            1lea2.png
+
+        rather than random ordering.
+    */
+
+    imageGroups =
+        Array.from(
+            groups.entries()
+        )
+        .map(
+            ([number, files]) => ({
+
+                number: number,
+
+                files: files.sort(
+                    naturalSort
+                )
+
+            })
+        )
+        .sort(
+            (a, b) =>
+                a.number - b.number
+        );
+
+
+    console.log(
+        "Image groups:",
+        imageGroups
+    );
 }
 
 
 /* =========================================================
-   LOAD IMAGES.JSON
+   NATURAL SORT
 ========================================================= */
 
-async function loadImages() {
+function naturalSort(a, b) {
 
-    try {
-
-        /*
-            Cache busting is useful on GitHub Pages.
-
-            It prevents the browser from keeping an
-            outdated images.json in cache.
-        */
-
-        const response =
-            await fetch(
-                "images.json?v=" + Date.now(),
-                {
-                    cache: "no-store"
-                }
-            );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                `images.json returned HTTP ${response.status}`
-            );
+    return a.localeCompare(
+        b,
+        undefined,
+        {
+            numeric: true,
+            sensitivity: "base"
         }
-
-
-        const images =
-            await response.json();
-
-
-        if (!Array.isArray(images)) {
-
-            throw new Error(
-                "images.json is not an array."
-            );
-        }
-
-
-        if (images.length === 0) {
-
-            throw new Error(
-                "images.json contains no images."
-            );
-        }
-
-
-        console.log(
-            "Images discovered:",
-            images
-        );
-
-
-        /*
-            Create every image simultaneously.
-        */
-
-        await createAllImages(images);
-
-
-    } catch (error) {
-
-        console.error(
-            "Image loading failed:",
-            error
-        );
-
-
-        loading.textContent =
-            "Could not load images.";
-
-    }
+    );
 }
 
 
 /* =========================================================
-   CREATE ALL IMAGES
+   PRELOAD IMAGES
 ========================================================= */
 
-async function createAllImages(images) {
+function preloadImages() {
 
-    /*
-        Wait for every image to preload.
+    const promises =
+        IMAGE_FILES.map(
+            filename => {
 
-        This prevents the animation from starting while
-        some images are still loading.
-    */
+                return new Promise(
+                    resolve => {
 
-    const loadedImages =
-        await Promise.all(
-            images.map(
-                preloadImage
-            )
+                        const image =
+                            new Image();
+
+
+                        image.onload =
+                            () => {
+
+                                console.log(
+                                    "Loaded:",
+                                    filename
+                                );
+
+                                resolve(true);
+                            };
+
+
+                        image.onerror =
+                            () => {
+
+                                console.error(
+                                    "Could not load:",
+                                    filename
+                                );
+
+                                resolve(false);
+                            };
+
+
+                        image.src =
+                            "img/" +
+                            encodeURIComponent(
+                                filename
+                            );
+                    }
+                );
+            }
         );
 
 
+    return Promise
+        .all(promises)
+        .then(results => {
+
+            /*
+                We need at least one image.
+
+                Normally all files should load.
+            */
+
+            const successful =
+                results.filter(Boolean);
+
+
+            if (
+                successful.length === 0
+            ) {
+
+                throw new Error(
+                    "No images could be loaded."
+                );
+            }
+
+
+            console.log(
+                `${successful.length}/${IMAGE_FILES.length} images loaded.`
+            );
+        });
+}
+
+
+/* =========================================================
+   SHOW PLAY BUTTON
+========================================================= */
+
+function showPlayButton() {
+
     /*
-        Remove images that failed to load.
+        Loading is finished.
+
+        No artificial timeout.
+
+        Show PLAY immediately.
     */
-
-    const validImages =
-        loadedImages.filter(Boolean);
-
-
-    if (validImages.length === 0) {
-
-        throw new Error(
-            "None of the images could be loaded."
-        );
-    }
-
-
-    /*
-        Create one DOM element for every image.
-    */
-
-    for (const imageData of validImages) {
-
-        createMovingImage(imageData);
-    }
-
 
     loading.style.display =
         "none";
 
 
-    /*
-        Start everything.
-    */
-
-    startExperiment();
+    playButton.style.display =
+        "block";
 }
 
 
 /* =========================================================
-   PRELOAD IMAGE
+   PLAY BUTTON
 ========================================================= */
 
-function preloadImage(imageData) {
+playButton.addEventListener(
+    "click",
+    () => {
 
-    return new Promise(resolve => {
-
-        const image =
-            new Image();
-
-
-        image.onload = () => {
-
-            resolve(imageData);
-        };
-
-
-        image.onerror = () => {
-
-            console.error(
-                "Could not load:",
-                imageData.path
-            );
-
-            resolve(null);
-        };
-
-
-        image.src =
-            encodeURI(imageData.path);
-    });
-}
-
-
-/* =========================================================
-   CREATE MOVING IMAGE
-========================================================= */
-
-function createMovingImage(imageData) {
-
-    const element =
-        document.createElement("img");
-
-
-    element.className =
-        "moving-image";
-
-
-    element.src =
-        encodeURI(imageData.path);
-
-
-    element.alt =
-        imageData.name;
-
-
-    /*
-        Store movement state directly on the object.
-    */
-
-    const movingImage = {
-
-        element: element,
-
-        x: 0,
-
-        y: 0,
-
-        velocityX: randomSpeed(),
-
-        velocityY: randomSpeed(),
-
-        /*
-            Random initial rotation.
-
-            This is purely visual.
-        */
-
-        rotation:
-            Math.random() * 360,
-
-        rotationSpeed:
-            (Math.random() - 0.5) * 1.2
-    };
-
-
-    /*
-        Add image to the page.
-    */
-
-    imageLayer.appendChild(element);
-
-
-    /*
-        The browser needs to know the image dimensions
-        before we can calculate its legal movement area.
-    */
-
-    requestAnimationFrame(() => {
-
-        if (finished) {
+        if (started || finished) {
             return;
         }
 
 
-        positionRandomly(
-            movingImage
-        );
+        started = true;
 
 
         /*
-            Fade it in.
+            Hide PLAY.
         */
 
-        element.style.opacity =
-            "1";
-    });
+        playButton.style.display =
+            "none";
 
 
-    movingImages.push(
-        movingImage
-    );
-}
+        /*
+            Start everything.
+        */
 
-
-/* =========================================================
-   RANDOM INITIAL POSITION
-========================================================= */
-
-function positionRandomly(movingImage) {
-
-    const element =
-        movingImage.element;
-
-
-    const maxX =
-        Math.max(
-            0,
-            window.innerWidth -
-            element.offsetWidth
-        );
-
-
-    const maxY =
-        Math.max(
-            0,
-            window.innerHeight -
-            element.offsetHeight
-        );
-
-
-    movingImage.x =
-        Math.random() * maxX;
-
-
-    movingImage.y =
-        Math.random() * maxY;
-
-
-    applyTransform(
-        movingImage
-    );
-}
+        startExperiment();
+    }
+);
 
 
 /* =========================================================
-   APPLY TRANSFORM
-========================================================= */
-
-function applyTransform(movingImage) {
-
-    movingImage.element.style.transform =
-        `translate3d(
-            ${movingImage.x}px,
-            ${movingImage.y}px,
-            0
-        )
-        rotate(${movingImage.rotation}deg)`;
-}
-
-
-/* =========================================================
-   START
+   START EXPERIMENT
 ========================================================= */
 
 function startExperiment() {
@@ -429,14 +457,34 @@ function startExperiment() {
 
 
     /*
-        Try to start music immediately.
+        Start music.
+
+        Because this function is called directly from
+        the PLAY button click, mobile browsers should
+        permit audio playback.
     */
 
-    tryStartMusic();
+    music.currentTime = 0;
+
+    music.play()
+        .then(() => {
+
+            console.log(
+                "Music started."
+            );
+
+        })
+        .catch(error => {
+
+            console.warn(
+                "Music could not start:",
+                error
+            );
+        });
 
 
     /*
-        Begin animation.
+        Start movement.
     */
 
     animationFrame =
@@ -446,103 +494,355 @@ function startExperiment() {
 
 
     /*
-        Change background after 30 seconds.
+        First object immediately.
     */
 
-    backgroundTimer =
-        setTimeout(() => {
-
-            background.style.backgroundImage =
-                'url("background2.jpg")';
-
-        }, BACKGROUND_CHANGE_TIME);
+    addNextObject();
 
 
     /*
-        All images appeared simultaneously.
-
-        Wait 4 seconds after that.
+        Spawn another object every 4 seconds.
     */
 
+    objectTimer =
+        setInterval(
+            () => {
+
+                addNextObject();
+
+            },
+            OBJECT_INTERVAL
+        );
+
+
+    /*
+        Background changes 30 seconds
+        after PLAY was pressed.
+    */
+
+    backgroundTimer =
+        setTimeout(
+            () => {
+
+                changeBackground();
+
+            },
+            BACKGROUND_CHANGE_TIME
+        );
+
+
+    /*
+        Calculate final object timing.
+
+        With 13 objects:
+
+            #1  = 0s
+            #2  = 4s
+            #3  = 8s
+            ...
+            #13 = 48s
+
+        Final screen:
+
+            48 + 4 = 52s
+    */
+
+    const finalObjectTime =
+        (
+            imageGroups.length - 1
+        ) *
+        OBJECT_INTERVAL;
+
+
     finalTimer =
-        setTimeout(() => {
+        setTimeout(
+            () => {
 
-            showFinalScreen();
+                finishExperiment();
 
-        }, FINAL_DELAY);
+            },
+            finalObjectTime + FINAL_DELAY
+        );
 }
 
 
 /* =========================================================
-   MUSIC
+   ADD NEXT OBJECT
 ========================================================= */
 
-function tryStartMusic() {
-
-    music.play()
-        .then(() => {
-
-            console.log(
-                "Music started automatically."
-            );
-
-        })
-        .catch(() => {
-
-            /*
-                Audible autoplay may be blocked by
-                mobile browsers.
-
-                The first interaction starts it.
-            */
-
-            console.log(
-                "Autoplay blocked."
-            );
-
-
-            const unlockMusic = () => {
-
-                music.play().catch(() => {});
-
-            };
-
-
-            document.addEventListener(
-                "pointerdown",
-                unlockMusic,
-                {
-                    once: true
-                }
-            );
-
-
-            document.addEventListener(
-                "keydown",
-                unlockMusic,
-                {
-                    once: true
-                }
-            );
-        });
-}
-
-
-/* =========================================================
-   ANIMATION
-========================================================= */
-
-function animate() {
+function addNextObject() {
 
     if (finished) {
         return;
     }
 
 
-    for (const movingImage of movingImages) {
+    if (
+        nextGroupIndex >=
+        imageGroups.length
+    ) {
 
-        moveSingleImage(
-            movingImage
+        return;
+    }
+
+
+    const group =
+        imageGroups[
+            nextGroupIndex
+        ];
+
+
+    nextGroupIndex++;
+
+
+    /*
+        This container represents ONE object.
+
+        The image inside it can change frames
+        without affecting the position.
+    */
+
+    const container =
+        document.createElement("div");
+
+
+    container.className =
+        "moving-image";
+
+
+    /*
+        Actual image.
+    */
+
+    const image =
+        document.createElement("img");
+
+
+    image.src =
+        "img/" +
+        encodeURIComponent(
+            group.files[0]
+        );
+
+
+    image.alt =
+        group.files[0];
+
+
+    /*
+        Explicitly make sure there is no rotation.
+    */
+
+    image.style.transform =
+        "rotate(0deg)";
+
+
+    container.appendChild(
+        image
+    );
+
+
+    imageLayer.appendChild(
+        container
+    );
+
+
+    /*
+        Object state.
+    */
+
+    const object = {
+
+        container: container,
+
+        image: image,
+
+        /*
+            All frames for this number.
+        */
+
+        frames: group.files,
+
+        /*
+            Current frame.
+        */
+
+        frameIndex: 0,
+
+        /*
+            Position.
+        */
+
+        x: 0,
+
+        y: 0,
+
+        /*
+            Velocity.
+        */
+
+        velocityX: 0,
+
+        velocityY: 0,
+
+        /*
+            Time when the current frame
+            was displayed.
+        */
+
+        lastFlicker:
+            performance.now()
+    };
+
+
+    /*
+        Random movement direction.
+    */
+
+    setRandomDirection(
+        object
+    );
+
+
+    /*
+        Random starting position.
+    */
+
+    setRandomPosition(
+        object
+    );
+
+
+    /*
+        Put it on screen.
+    */
+
+    applyTransform(
+        object
+    );
+
+
+    /*
+        Save it.
+    */
+
+    movingObjects.push(
+        object
+    );
+
+
+    console.log(
+        `Object #${group.number}:`,
+        group.files
+    );
+}
+
+
+/* =========================================================
+   RANDOM DIRECTION
+========================================================= */
+
+function setRandomDirection(object) {
+
+    const angle =
+        Math.random() *
+        Math.PI *
+        2;
+
+
+    /*
+        SPEED is 2.7.
+
+        Direction is random.
+
+        Speed remains constant.
+    */
+
+    object.velocityX =
+        Math.cos(angle) *
+        SPEED;
+
+    object.velocityY =
+        Math.sin(angle) *
+        SPEED;
+}
+
+
+/* =========================================================
+   RANDOM INITIAL POSITION
+========================================================= */
+
+function setRandomPosition(object) {
+
+    const width =
+        object.container.offsetWidth;
+
+    const height =
+        object.container.offsetHeight;
+
+
+    const maxX =
+        Math.max(
+            0,
+            window.innerWidth - width
+        );
+
+
+    const maxY =
+        Math.max(
+            0,
+            window.innerHeight - height
+        );
+
+
+    object.x =
+        Math.random() * maxX;
+
+    object.y =
+        Math.random() * maxY;
+}
+
+
+/* =========================================================
+   APPLY POSITION
+========================================================= */
+
+function applyTransform(object) {
+
+    /*
+        Only position changes.
+
+        No rotation.
+    */
+
+    object.container.style.transform =
+        `translate3d(
+            ${object.x}px,
+            ${object.y}px,
+            0
+        )`;
+}
+
+
+/* =========================================================
+   ANIMATION LOOP
+========================================================= */
+
+function animate(timestamp) {
+
+    if (finished) {
+        return;
+    }
+
+
+    for (
+        const object
+        of movingObjects
+    ) {
+
+        moveObject(
+            object,
+            timestamp
         );
     }
 
@@ -555,128 +855,296 @@ function animate() {
 
 
 /* =========================================================
-   MOVE ONE IMAGE
+   MOVE + FLICKER
 ========================================================= */
 
-function moveSingleImage(movingImage) {
+function moveObject(
+    object,
+    timestamp
+) {
 
-    const element =
-        movingImage.element;
+    /*
+        ====================================================
+        FLICKER
+        ====================================================
+    */
+
+    if (
+        object.frames.length > 1 &&
+        timestamp -
+            object.lastFlicker >=
+            FLICKER_INTERVAL
+    ) {
+
+        object.frameIndex =
+            (
+                object.frameIndex + 1
+            ) %
+            object.frames.length;
+
+
+        /*
+            ONLY change the image source.
+
+            Position is untouched.
+        */
+
+        object.image.src =
+            "img/" +
+            encodeURIComponent(
+                object.frames[
+                    object.frameIndex
+                ]
+            );
+
+
+        object.image.alt =
+            object.frames[
+                object.frameIndex
+            ];
+
+
+        object.lastFlicker =
+            timestamp;
+    }
 
 
     /*
-        Move.
+        ====================================================
+        MOVEMENT
+        ====================================================
     */
 
-    movingImage.x +=
-        movingImage.velocityX;
+    object.x +=
+        object.velocityX;
 
-
-    movingImage.y +=
-        movingImage.velocityY;
+    object.y +=
+        object.velocityY;
 
 
     /*
-        Slowly rotate.
-
-        Each image rotates independently.
+        ====================================================
+        BOUNDARIES
+        ====================================================
     */
 
-    movingImage.rotation +=
-        movingImage.rotationSpeed;
+    const width =
+        object.container.offsetWidth;
 
+    const height =
+        object.container.offsetHeight;
 
-    /*
-        Calculate screen boundaries.
-    */
 
     const maxX =
         Math.max(
             0,
-            window.innerWidth -
-            element.offsetWidth
+            window.innerWidth - width
         );
 
 
     const maxY =
         Math.max(
             0,
-            window.innerHeight -
-            element.offsetHeight
+            window.innerHeight - height
         );
 
 
     /*
-        LEFT
+        ====================================================
+        LEFT / RIGHT
+        ====================================================
     */
 
-    if (movingImage.x <= 0) {
+    if (
+        object.x <= 0 ||
+        object.x >= maxX
+    ) {
 
-        movingImage.x = 0;
-
-        movingImage.velocityX =
-            Math.abs(
-                randomSpeed()
+        object.x =
+            Math.max(
+                0,
+                Math.min(
+                    object.x,
+                    maxX
+                )
             );
+
+
+        chooseDirectionFromEdge(
+            object,
+            "horizontal"
+        );
     }
 
 
     /*
-        RIGHT
+        ====================================================
+        TOP / BOTTOM
+        ====================================================
     */
 
-    else if (movingImage.x >= maxX) {
+    if (
+        object.y <= 0 ||
+        object.y >= maxY
+    ) {
 
-        movingImage.x = maxX;
-
-        movingImage.velocityX =
-            -Math.abs(
-                randomSpeed()
+        object.y =
+            Math.max(
+                0,
+                Math.min(
+                    object.y,
+                    maxY
+                )
             );
-    }
 
 
-    /*
-        TOP
-    */
-
-    if (movingImage.y <= 0) {
-
-        movingImage.y = 0;
-
-        movingImage.velocityY =
-            Math.abs(
-                randomSpeed()
-            );
-    }
-
-
-    /*
-        BOTTOM
-    */
-
-    else if (movingImage.y >= maxY) {
-
-        movingImage.y = maxY;
-
-        movingImage.velocityY =
-            -Math.abs(
-                randomSpeed()
-            );
+        chooseDirectionFromEdge(
+            object,
+            "vertical"
+        );
     }
 
 
     applyTransform(
-        movingImage
+        object
     );
 }
 
 
 /* =========================================================
-   FINAL SCREEN
+   RANDOM NEW DIRECTION AFTER COLLISION
 ========================================================= */
 
-function showFinalScreen() {
+function chooseDirectionFromEdge(
+    object,
+    edge
+) {
+
+    /*
+        Generate random direction.
+    */
+
+    const angle =
+        Math.random() *
+        Math.PI *
+        2;
+
+
+    let vx =
+        Math.cos(angle);
+
+    let vy =
+        Math.sin(angle);
+
+
+    /*
+        Force direction back into the screen.
+    */
+
+    if (
+        edge === "horizontal"
+    ) {
+
+        if (
+            object.x <= 0
+        ) {
+
+            vx =
+                Math.abs(vx);
+
+        } else {
+
+            vx =
+                -Math.abs(vx);
+        }
+    }
+
+
+    if (
+        edge === "vertical"
+    ) {
+
+        if (
+            object.y <= 0
+        ) {
+
+            vy =
+                Math.abs(vy);
+
+        } else {
+
+            vy =
+                -Math.abs(vy);
+        }
+    }
+
+
+    /*
+        Normalize vector.
+
+        This preserves the exact speed of 2.7.
+    */
+
+    const magnitude =
+        Math.sqrt(
+            vx * vx +
+            vy * vy
+        );
+
+
+    if (
+        magnitude === 0
+    ) {
+
+        setRandomDirection(
+            object
+        );
+
+        return;
+    }
+
+
+    object.velocityX =
+        (
+            vx / magnitude
+        ) *
+        SPEED;
+
+
+    object.velocityY =
+        (
+            vy / magnitude
+        ) *
+        SPEED;
+}
+
+
+/* =========================================================
+   BACKGROUND CHANGE
+========================================================= */
+
+function changeBackground() {
+
+    if (finished) {
+        return;
+    }
+
+
+    background.style.backgroundImage =
+        'url("background2.jpg")';
+
+
+    console.log(
+        "Changed to background2.jpg"
+    );
+}
+
+
+/* =========================================================
+   FINISH
+========================================================= */
+
+function finishExperiment() {
 
     if (finished) {
         return;
@@ -684,6 +1152,20 @@ function showFinalScreen() {
 
 
     finished = true;
+
+
+    console.log(
+        "Experiment finished."
+    );
+
+
+    /*
+        Stop spawning.
+    */
+
+    clearInterval(
+        objectTimer
+    );
 
 
     /*
@@ -712,7 +1194,7 @@ function showFinalScreen() {
 
 
     /*
-        Stop music immediately.
+        Stop music completely.
     */
 
     music.pause();
@@ -738,7 +1220,7 @@ function showFinalScreen() {
 
 
 /* =========================================================
-   RESIZE
+   RESIZE / PHONE ROTATION
 ========================================================= */
 
 window.addEventListener(
@@ -750,52 +1232,118 @@ window.addEventListener(
         }
 
 
-        /*
-            Make sure existing images remain inside
-            the screen after rotating/resizing a phone.
-        */
+        for (
+            const object
+            of movingObjects
+        ) {
 
-        for (const movingImage of movingImages) {
+            const width =
+                object.container.offsetWidth;
 
-            const element =
-                movingImage.element;
+            const height =
+                object.container.offsetHeight;
 
 
             const maxX =
                 Math.max(
                     0,
-                    window.innerWidth -
-                    element.offsetWidth
+                    window.innerWidth - width
                 );
 
 
             const maxY =
                 Math.max(
                     0,
-                    window.innerHeight -
-                    element.offsetHeight
+                    window.innerHeight - height
                 );
 
 
-            movingImage.x =
+            /*
+                Keep existing objects inside
+                the new viewport.
+            */
+
+            object.x =
                 Math.min(
-                    movingImage.x,
+                    object.x,
                     maxX
                 );
 
 
-            movingImage.y =
+            object.y =
                 Math.min(
-                    movingImage.y,
+                    object.y,
                     maxY
                 );
+
+
+            applyTransform(
+                object
+            );
         }
     }
 );
 
 
 /* =========================================================
-   START LOADING
+   INITIALIZATION
 ========================================================= */
 
-loadImages();
+async function initialize() {
+
+    /*
+        Loading message is visible immediately.
+    */
+
+    loading.textContent =
+        "Loading!!....";
+
+
+    try {
+
+        /*
+            Group filenames.
+        */
+
+        createGroups();
+
+
+        /*
+            Preload all images.
+
+            There is NO setTimeout here.
+
+            If loading takes 0.5 seconds,
+            PLAY appears after 0.5 seconds.
+
+            If it takes 3 seconds,
+            PLAY appears after 3 seconds.
+        */
+
+        await preloadImages();
+
+
+        /*
+            Everything is ready.
+        */
+
+        showPlayButton();
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+
+        loading.textContent =
+            "Could not load images.";
+    }
+}
+
+
+/* =========================================================
+   START
+========================================================= */
+
+initialize();
