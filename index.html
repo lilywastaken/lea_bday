@@ -1,26 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Lea Experiment</title>
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    >
+
+    <title>Lea</title>
 
     <link rel="stylesheet" href="style.css">
+
 </head>
 
 <body>
 
-    <main>
-        <div class="counter">Clicks: <span id="count">0</span></div>
+    <div id="background"></div>
 
-        <button id="imageButton" aria-label="Interact with Lea">
-            <img src="lea.png" alt="Lea">
-        </button>
+    <div id="image-layer"></div>
 
-        <p id="message">Tap the picture</p>
-    </main>
+    <div id="loading">
+        Loading...
+    </div>
+
+    <audio
+        id="music"
+        src="tunak.mp3"
+        preload="auto"
+    ></audio>
+
+    <div id="error-screen">
+        <img src="error.png" alt="Error">
+    </div>
 
     <script src="script.js"></script>
+
 </body>
+
 </html>

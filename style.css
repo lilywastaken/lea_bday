@@ -4,70 +4,205 @@
 
 html,
 body {
-    margin: 0;
     width: 100%;
     height: 100%;
+
+    margin: 0;
+    padding: 0;
+
+    overflow: hidden;
+
+    background: #000;
 }
 
 body {
-    font-family: Arial, sans-serif;
-    background: #111;
-    color: white;
-    overflow: hidden;
+    position: relative;
 }
 
-main {
+
+/* =========================================================
+   BACKGROUND
+========================================================= */
+
+#background {
+
+    position: fixed;
+
+    inset: 0;
+
     width: 100%;
     height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 24px;
+
+    background-image: url("background.jpg");
+
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+
+    z-index: 0;
+
+    transition:
+        background-image 1s ease;
 }
 
-#imageButton {
-    border: none;
-    padding: 0;
-    background: transparent;
-    cursor: pointer;
-    border-radius: 50%;
-    transition: transform 0.25s ease;
-    -webkit-tap-highlight-color: transparent;
+
+/* =========================================================
+   IMAGE LAYER
+========================================================= */
+
+#image-layer {
+
+    position: fixed;
+
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    z-index: 10;
+
+    pointer-events: none;
 }
 
-#imageButton:hover {
-    transform: scale(1.04);
-}
 
-#imageButton img {
-    display: block;
+/* =========================================================
+   INDIVIDUAL IMAGE
+========================================================= */
 
-    width: min(70vw, 400px);
-    height: min(70vw, 400px);
+.moving-image {
+
+    position: absolute;
+
+    /*
+        Smaller than before.
+
+        Every image gets the same bounding box.
+    */
+
+    width: min(32vw, 240px);
+    height: min(32vw, 240px);
+
+    /*
+        Keep the actual image inside the bounding box
+        without changing its aspect ratio.
+    */
 
     object-fit: contain;
 
-    border-radius: 50%;
-
-    box-shadow:
-        0 0 30px rgba(255, 255, 255, 0.15),
-        0 0 80px rgba(120, 80, 255, 0.25);
+    display: block;
 
     user-select: none;
+
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+
+    pointer-events: none;
+
+    /*
+        Prevent blurry rendering caused by some
+        browsers when continuously moving images.
+    */
+
+    will-change: transform;
+
+    /*
+        Slight shadow so images remain visible
+        against bright backgrounds.
+    */
+
+    filter:
+        drop-shadow(
+            0 4px 12px rgba(0, 0, 0, 0.45)
+        );
+
+    /*
+        Fade in when first created.
+    */
+
+    opacity: 0;
+
+    transition:
+        opacity 0.5s ease;
 }
 
-.counter {
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+#loading {
+
     position: fixed;
-    top: 20px;
-    left: 20px;
 
-    font-size: 14px;
-    opacity: 0.7;
+    left: 50%;
+    top: 50%;
+
+    transform:
+        translate(-50%, -50%);
+
+    color: white;
+
+    font-family: Arial, sans-serif;
+
+    font-size: 18px;
+
+    z-index: 100;
+
+    text-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.8);
 }
 
-#message {
-    margin: 0;
-    font-size: 18px;
-    opacity: 0.8;
+
+/* =========================================================
+   ERROR SCREEN
+========================================================= */
+
+#error-screen {
+
+    position: fixed;
+
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    background: #000;
+
+    z-index: 9999;
+
+    display: none;
+
+    align-items: center;
+    justify-content: center;
+}
+
+
+#error-screen img {
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+
+    display: block;
+
+    user-select: none;
+
+    -webkit-user-drag: none;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 600px) {
+
+    .moving-image {
+
+        width: min(27vw, 150px);
+        height: min(27vw, 150px);
+
+    }
+
 }
