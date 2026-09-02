@@ -192,7 +192,7 @@ let started = false;
 */
 
 function getImagePath(filename) {
-    return "./img/" + filename;
+    return "./" + filename;
 }
 
 
