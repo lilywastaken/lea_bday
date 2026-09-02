@@ -27,25 +27,15 @@
 
     LOADING:
 
-        The page preloads all images.
+        All images are preloaded before PLAY appears.
 
         There is NO artificial delay.
 
-        As soon as everything has loaded:
-
-            "Loading!!...." disappears
-                    ↓
-                PLAY appears
-
-        Pressing PLAY starts:
-
-            - music
-            - first image
-            - movement
-            - object spawning
+        If an image fails to load, the exact filename
+        is shown in the loading message.
 
 
-    TIMELINE AFTER PLAY:
+    AFTER PLAY:
 
         0s       Object #1
         4s       Object #2
@@ -57,8 +47,8 @@
         Final object + 4s:
 
                  music stops
-                 all images disappear
-                 error.png fills screen
+                 all moving images disappear
+                 error.png fills the screen
 
 ============================================================
 */
@@ -69,7 +59,6 @@
 ========================================================= */
 
 const IMAGE_FILES = [
-
     "1lea.png",
     "1lea2.png",
 
@@ -112,36 +101,19 @@ const IMAGE_FILES = [
 
 const OBJECT_INTERVAL = 4000;
 
-
-/*
-    0.4 seconds between frames.
-*/
-
 const FLICKER_INTERVAL = 400;
-
-
-/*
-    Background changes 30 seconds after PLAY.
-*/
 
 const BACKGROUND_CHANGE_TIME = 30000;
 
-
-/*
-    Final screen appears 4 seconds after
-    the final object appears.
-*/
-
 const FINAL_DELAY = 4000;
 
-
 /*
-    Previous speed:
+    Movement speed.
 
+    Previous:
         1.8
 
-    +50%:
-
+    Current:
         2.7
 */
 
@@ -195,6 +167,36 @@ let started = false;
 
 
 /* =========================================================
+   IMAGE PATH
+========================================================= */
+
+/*
+    IMPORTANT FOR GITHUB PAGES
+
+    Do NOT use:
+
+        encodeURIComponent(filename)
+
+    because filenames such as:
+
+        1lea.png
+
+    do not need encoding.
+
+    Using ./img/ keeps the path relative to the
+    GitHub Pages project.
+
+    Example:
+
+        ./img/1lea.png
+*/
+
+function getImagePath(filename) {
+    return "./img/" + filename;
+}
+
+
+/* =========================================================
    GROUP FILES BY NUMBER
 ========================================================= */
 
@@ -202,20 +204,23 @@ function createGroups() {
 
     const groups = new Map();
 
-
     for (const filename of IMAGE_FILES) {
 
         /*
             Extract the number at the beginning.
 
-            1lea.png       -> 1
-            1lea2.png      -> 1
-            10alexi...     -> 10
+            1lea.png
+                -> 1
+
+            1lea2.png
+                -> 1
+
+            10alexi_pony.png
+                -> 10
         */
 
         const match =
             filename.match(/^(\d+)/);
-
 
         if (!match) {
 
@@ -227,13 +232,11 @@ function createGroups() {
             continue;
         }
 
-
         const number =
             parseInt(
                 match[1],
                 10
             );
-
 
         if (!groups.has(number)) {
 
@@ -242,7 +245,6 @@ function createGroups() {
                 []
             );
         }
-
 
         groups
             .get(number)
@@ -253,12 +255,10 @@ function createGroups() {
     /*
         Sort frames naturally.
 
-        This produces:
+        Example:
 
             1lea.png
             1lea2.png
-
-        rather than random ordering.
     */
 
     imageGroups =
@@ -266,15 +266,17 @@ function createGroups() {
             groups.entries()
         )
         .map(
-            ([number, files]) => ({
+            ([number, files]) => {
 
-                number: number,
+                return {
+                    number: number,
 
-                files: files.sort(
-                    naturalSort
-                )
+                    files: files.sort(
+                        naturalSort
+                    )
+                };
 
-            })
+            }
         )
         .sort(
             (a, b) =>
@@ -312,41 +314,114 @@ function naturalSort(a, b) {
 
 function preloadImages() {
 
-    const promises = IMAGE_FILES.map(filename => {
+    const promises =
+        IMAGE_FILES.map(
+            filename => {
 
-        return new Promise((resolve, reject) => {
+                return new Promise(
+                    resolve => {
 
-            const image = new Image();
+                        const image =
+                            new Image();
 
-            const path = "./img/" + filename;
+                        const path =
+                            getImagePath(
+                                filename
+                            );
 
-            image.onload = () => {
 
-                console.log("Loaded:", path);
+                        image.onload =
+                            () => {
 
-                resolve();
-            };
+                                console.log(
+                                    "Loaded:",
+                                    path
+                                );
 
-            image.onerror = () => {
+                                resolve({
+                                    success: true,
+                                    filename: filename
+                                });
+                            };
 
-                console.error(
-                    "FAILED TO LOAD:",
-                    path
+
+                        image.onerror =
+                            () => {
+
+                                console.error(
+                                    "FAILED TO LOAD:",
+                                    path
+                                );
+
+                                resolve({
+                                    success: false,
+                                    filename: filename
+                                });
+                            };
+
+
+                        /*
+                            IMPORTANT:
+
+                            Use the simple relative
+                            GitHub Pages path.
+
+                            No encodeURIComponent().
+                        */
+
+                        image.src = path;
+                    }
+                );
+            }
+        );
+
+
+    return Promise
+        .all(promises)
+        .then(results => {
+
+            const failed =
+                results.filter(
+                    result =>
+                        !result.success
                 );
 
-                reject(
-                    new Error(
-                        "Could not load " + path
-                    )
-                );
-            };
 
-            image.src = path;
+            const successful =
+                results.filter(
+                    result =>
+                        result.success
+                );
+
+
+            console.log(
+                `${successful.length}/${IMAGE_FILES.length} images loaded.`
+            );
+
+
+            /*
+                If even one image is missing,
+                stop loading and tell us exactly
+                which file is the problem.
+            */
+
+            if (failed.length > 0) {
+
+                const failedFiles =
+                    failed
+                        .map(
+                            result =>
+                                result.filename
+                        )
+                        .join(", ");
+
+
+                throw new Error(
+                    "Failed to load: " +
+                    failedFiles
+                );
+            }
         });
-    });
-
-
-    return Promise.all(promises);
 }
 
 
@@ -356,17 +431,8 @@ function preloadImages() {
 
 function showPlayButton() {
 
-    /*
-        Loading is finished.
-
-        No artificial timeout.
-
-        Show PLAY immediately.
-    */
-
     loading.style.display =
         "none";
-
 
     playButton.style.display =
         "block";
@@ -381,7 +447,10 @@ playButton.addEventListener(
     "click",
     () => {
 
-        if (started || finished) {
+        if (
+            started ||
+            finished
+        ) {
             return;
         }
 
@@ -389,17 +458,9 @@ playButton.addEventListener(
         started = true;
 
 
-        /*
-            Hide PLAY.
-        */
-
         playButton.style.display =
             "none";
 
-
-        /*
-            Start everything.
-        */
 
         startExperiment();
     }
@@ -418,14 +479,14 @@ function startExperiment() {
 
 
     /*
-        Start music.
+        Start music directly from the
+        PLAY button interaction.
 
-        Because this function is called directly from
-        the PLAY button click, mobile browsers should
-        permit audio playback.
+        This is important for mobile browsers.
     */
 
     music.currentTime = 0;
+
 
     music.play()
         .then(() => {
@@ -445,7 +506,7 @@ function startExperiment() {
 
 
     /*
-        Start movement.
+        Start animation.
     */
 
     animationFrame =
@@ -455,14 +516,14 @@ function startExperiment() {
 
 
     /*
-        First object immediately.
+        First object appears immediately.
     */
 
     addNextObject();
 
 
     /*
-        Spawn another object every 4 seconds.
+        Add another object every 4 seconds.
     */
 
     objectTimer =
@@ -477,8 +538,8 @@ function startExperiment() {
 
 
     /*
-        Background changes 30 seconds
-        after PLAY was pressed.
+        Change background 30 seconds
+        after PLAY.
     */
 
     backgroundTimer =
@@ -493,8 +554,6 @@ function startExperiment() {
 
 
     /*
-        Calculate final object timing.
-
         With 13 objects:
 
             #1  = 0s
@@ -542,7 +601,6 @@ function addNextObject() {
         nextGroupIndex >=
         imageGroups.length
     ) {
-
         return;
     }
 
@@ -557,31 +615,31 @@ function addNextObject() {
 
 
     /*
-        This container represents ONE object.
+        One container = one moving object.
 
-        The image inside it can change frames
-        without affecting the position.
+        The image inside can change frames
+        without changing the object's position.
     */
 
     const container =
         document.createElement("div");
 
-
     container.className =
         "moving-image";
 
-
-    /*
-        Actual image.
-    */
 
     const image =
         document.createElement("img");
 
 
+    /*
+        FIRST FRAME
+
+        Use the relative GitHub Pages path.
+    */
+
     image.src =
-        "img/" +
-        encodeURIComponent(
+        getImagePath(
             group.files[0]
         );
 
@@ -591,7 +649,7 @@ function addNextObject() {
 
 
     /*
-        Explicitly make sure there is no rotation.
+        Never rotate the image.
     */
 
     image.style.transform =
@@ -618,38 +676,17 @@ function addNextObject() {
 
         image: image,
 
-        /*
-            All frames for this number.
-        */
-
         frames: group.files,
 
-        /*
-            Current frame.
-        */
-
         frameIndex: 0,
-
-        /*
-            Position.
-        */
 
         x: 0,
 
         y: 0,
 
-        /*
-            Velocity.
-        */
-
         velocityX: 0,
 
         velocityY: 0,
-
-        /*
-            Time when the current frame
-            was displayed.
-        */
 
         lastFlicker:
             performance.now()
@@ -657,7 +694,7 @@ function addNextObject() {
 
 
     /*
-        Random movement direction.
+        Random initial direction.
     */
 
     setRandomDirection(
@@ -666,7 +703,7 @@ function addNextObject() {
 
 
     /*
-        Random starting position.
+        Random initial position.
     */
 
     setRandomPosition(
@@ -675,7 +712,7 @@ function addNextObject() {
 
 
     /*
-        Put it on screen.
+        Apply initial position.
     */
 
     applyTransform(
@@ -684,7 +721,7 @@ function addNextObject() {
 
 
     /*
-        Save it.
+        Keep object alive.
     */
 
     movingObjects.push(
@@ -711,17 +748,10 @@ function setRandomDirection(object) {
         2;
 
 
-    /*
-        SPEED is 2.7.
-
-        Direction is random.
-
-        Speed remains constant.
-    */
-
     object.velocityX =
         Math.cos(angle) *
         SPEED;
+
 
     object.velocityY =
         Math.sin(angle) *
@@ -759,6 +789,7 @@ function setRandomPosition(object) {
     object.x =
         Math.random() * maxX;
 
+
     object.y =
         Math.random() * maxY;
 }
@@ -771,9 +802,9 @@ function setRandomPosition(object) {
 function applyTransform(object) {
 
     /*
-        Only position changes.
+        Position only.
 
-        No rotation.
+        Never rotate the object.
     */
 
     object.container.style.transform =
@@ -825,9 +856,13 @@ function moveObject(
 ) {
 
     /*
-        ====================================================
-        FLICKER
-        ====================================================
+        FRAME SWITCHING
+
+        Every 0.4 seconds.
+
+        Only the image changes.
+
+        The object position does NOT change.
     */
 
     if (
@@ -844,15 +879,8 @@ function moveObject(
             object.frames.length;
 
 
-        /*
-            ONLY change the image source.
-
-            Position is untouched.
-        */
-
         object.image.src =
-            "img/" +
-            encodeURIComponent(
+            getImagePath(
                 object.frames[
                     object.frameIndex
                 ]
@@ -871,9 +899,7 @@ function moveObject(
 
 
     /*
-        ====================================================
         MOVEMENT
-        ====================================================
     */
 
     object.x +=
@@ -884,9 +910,7 @@ function moveObject(
 
 
     /*
-        ====================================================
         BOUNDARIES
-        ====================================================
     */
 
     const width =
@@ -911,9 +935,7 @@ function moveObject(
 
 
     /*
-        ====================================================
-        LEFT / RIGHT
-        ====================================================
+        LEFT / RIGHT COLLISION
     */
 
     if (
@@ -939,9 +961,7 @@ function moveObject(
 
 
     /*
-        ====================================================
-        TOP / BOTTOM
-        ====================================================
+        TOP / BOTTOM COLLISION
     */
 
     if (
@@ -982,7 +1002,7 @@ function chooseDirectionFromEdge(
 ) {
 
     /*
-        Generate random direction.
+        Pick a completely new random angle.
     */
 
     const angle =
@@ -999,7 +1019,8 @@ function chooseDirectionFromEdge(
 
 
     /*
-        Force direction back into the screen.
+        Force the new direction back
+        into the viewport.
     */
 
     if (
@@ -1041,9 +1062,8 @@ function chooseDirectionFromEdge(
 
 
     /*
-        Normalize vector.
-
-        This preserves the exact speed of 2.7.
+        Normalize the vector so the
+        movement speed remains exactly SPEED.
     */
 
     const magnitude =
@@ -1092,7 +1112,7 @@ function changeBackground() {
 
 
     background.style.backgroundImage =
-        'url("background2.jpg")';
+        'url("./background2.jpg")';
 
 
     console.log(
@@ -1167,8 +1187,7 @@ function finishExperiment() {
         Remove every moving image.
     */
 
-    imageLayer.innerHTML =
-        "";
+    imageLayer.innerHTML = "";
 
 
     /*
@@ -1220,8 +1239,8 @@ window.addEventListener(
 
 
             /*
-                Keep existing objects inside
-                the new viewport.
+                Keep existing objects
+                inside the new viewport.
             */
 
             object.x =
@@ -1253,7 +1272,7 @@ window.addEventListener(
 async function initialize() {
 
     /*
-        Loading message is visible immediately.
+        Loading message appears immediately.
     */
 
     loading.textContent =
@@ -1263,29 +1282,26 @@ async function initialize() {
     try {
 
         /*
-            Group filenames.
+            Build image groups.
         */
 
         createGroups();
 
 
         /*
-            Preload all images.
+            Preload every image.
 
-            There is NO setTimeout here.
+            There is NO artificial delay.
 
-            If loading takes 0.5 seconds,
-            PLAY appears after 0.5 seconds.
-
-            If it takes 3 seconds,
-            PLAY appears after 3 seconds.
+            Loading lasts only as long as
+            the images actually need.
         */
 
         await preloadImages();
 
 
         /*
-            Everything is ready.
+            Everything loaded successfully.
         */
 
         showPlayButton();
@@ -1297,7 +1313,15 @@ async function initialize() {
         );
 
 
+        /*
+            Show the exact problem on screen.
+
+            This is particularly useful for
+            diagnosing GitHub Pages paths.
+        */
+
         loading.textContent =
+            error.message ||
             "Could not load images.";
     }
 }
