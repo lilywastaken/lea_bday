@@ -2,6 +2,7 @@
     box-sizing: border-box;
 }
 
+
 html,
 body {
     width: 100%;
@@ -14,6 +15,7 @@ body {
 
     background: #000;
 }
+
 
 body {
     position: relative;
@@ -43,12 +45,11 @@ body {
 
 
 /* =========================================================
-   IMAGE LAYER
+   MOVING IMAGE LAYER
 ========================================================= */
 
 #image-layer {
     position: fixed;
-
     inset: 0;
 
     width: 100%;
@@ -67,14 +68,6 @@ body {
 .moving-image {
     position: absolute;
 
-    /*
-        Previous desktop maximum:
-            210px
-
-        +50%:
-            315px
-    */
-
     width: min(45vw, 315px);
     height: min(45vw, 315px);
 
@@ -92,10 +85,6 @@ body {
 }
 
 
-/* =========================================================
-   IMAGE
-========================================================= */
-
 .moving-image img {
     width: 100%;
     height: 100%;
@@ -110,10 +99,6 @@ body {
     -webkit-user-drag: none;
 
     pointer-events: none;
-
-    /*
-        Images are always properly oriented.
-    */
 
     transform: rotate(0deg);
 
@@ -195,10 +180,6 @@ body {
 
     -webkit-user-select: none;
 
-    /*
-        Make tapping it comfortable on mobile.
-    */
-
     min-width: 160px;
     min-height: 65px;
 
@@ -208,10 +189,8 @@ body {
 }
 
 
-/* Hover only really matters on computers */
-
 #play-button:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.2<div id="background");
 
     transform:
         translate(-50%, -50%)
@@ -219,12 +198,401 @@ body {
 }
 
 
-/* Press feedback */
-
 #play-button:active {
     transform:
         translate(-50%, -50%)
         scale(0.95);
+}
+
+
+/* =========================================================
+   BOSS SCREEN
+========================================================= */
+
+#boss-screen {
+    position: fixed;
+
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    display: none;
+
+    align-items: center;
+    justify-content: center;
+
+    z-index: 500;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   ARENA RED OVERLAY
+========================================================= */
+
+#arena-red-overlay {
+    display: none;
+}
+
+
+/* =========================================================
+   BOSS UI
+========================================================= */
+
+#boss-ui {
+    position: absolute;
+
+    top: 20px;
+    left: 50%;
+
+    transform:
+        translateX(-50%);
+
+    width: min(80vw, 600px);
+
+    z-index: 2;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   LIFE BAR BACKGROUND
+========================================================= */
+
+#boss-health-container {
+    width: 100%;
+    height: 30px;
+
+    border: 3px solid white;
+
+    background: #111;
+
+    box-shadow:
+        0 0 10px rgba(0, 0, 0, 0.9);
+
+    overflow: hidden;
+}
+
+
+/* =========================================================
+   LIFE BAR
+========================================================= */
+
+#boss-health-bar {
+    width: 100%;
+    height: 100%;
+
+    background: #d00000;
+
+    transform-origin: left center;
+
+    transition:
+        width 0.15s linear;
+}
+
+
+/* =========================================================
+   LIFE TEXT
+========================================================= */
+
+#boss-health-text {
+    margin-top: 5px;
+
+    color: white;
+
+    font-family: Arial, sans-serif;
+
+    font-size: 18px;
+
+    font-weight: bold;
+
+    text-align: center;
+
+    text-shadow:
+        0 2px 5px black;
+}
+
+
+/* =========================================================
+   BOSS
+========================================================= */
+
+#boss {
+    position: absolute;
+
+    left: 50%;
+    top: 55%;
+
+    transform: translate(-50%, -50%);
+
+    padding: 0;
+    margin: 0;
+
+    border: 0;
+    background: transparent;
+
+    cursor: pointer;
+    pointer-events: auto;
+
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+
+    outline: none;
+
+    z-index: 2;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+
+#boss-image {
+    display: block;
+
+    width: min(70vw, 500px);
+    height: min(70vh, 500px);
+
+    object-fit: contain;
+
+    user-select: none;
+
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+
+    pointer-events: none;
+
+    filter:
+        drop-shadow(
+            0 8px 18px rgba(0, 0, 0, 0.8)
+        );
+
+    animation:
+        boss-menace-shake
+        0.08s
+        infinite;
+}
+
+
+@keyframes boss-menace-shake {
+
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    25% {
+        transform: translate(-4px, 2px) rotate(-0.5deg);
+    }
+
+    50% {
+        transform: translate(4px, -2px) rotate(0.5deg);
+    }
+
+    75% {
+        transform: translate(-3px, -2px) rotate(-0.4deg);
+    }
+
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+}
+
+/* =========================================================
+   BOSS IMAGE
+========================================================= */
+
+#boss-image {
+    display: block;
+
+    width: min(70vw, 500px);
+    height: min(70vh, 500px);
+
+    object-fit: contain;
+
+    user-select: none;
+
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+
+    pointer-events: none;
+
+    filter:
+        drop-shadow(
+            0 8px 18px rgba(0, 0, 0, 0.8)
+        );
+}
+
+
+/* =========================================================
+   BOSS TEXT
+========================================================= */
+
+#boss-text {
+    margin-top: 12px;
+
+    color: red;
+
+    font-family:
+        Impact,
+        Haettenschweiler,
+        "Arial Black",
+        sans-serif;
+
+    font-size: clamp(28px, 5vw, 48px);
+
+    font-weight: 900;
+
+    letter-spacing: 2px;
+
+    text-align: center;
+
+    line-height: 1;
+
+    white-space: nowrap;
+
+    text-shadow:
+        3px 3px 0 #000,
+        -2px -2px 0 #000,
+        2px -2px 0 #000,
+        -2px 2px 0 #000;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   MENACING BOSS SHAKE
+========================================================= */
+
+@keyframes boss-shake {
+
+    0% {
+        margin-left: 0;
+        margin-top: 0;
+    }
+
+    25% {
+        margin-left: -5px;
+        margin-top: 3px;
+    }
+
+    50% {
+        margin-left: 5px;
+        margin-top: -3px;
+    }
+
+    75% {
+        margin-left: -3px;
+        margin-top: -4px;
+    }
+
+    100% {
+        margin-left: 0;
+        margin-top: 0;
+    }
+}
+
+
+/* =========================================================
+   BOSS HIT EFFECT
+========================================================= */
+
+#boss.boss-hit {
+    animation:
+        boss-shake 0.08s infinite,
+        boss-hit-shake 0.12s linear;
+}
+
+
+@keyframes boss-hit-shake {
+
+    0% {
+        transform:
+            translate(-50%, -50%)
+            scale(1);
+    }
+
+    25% {
+        transform:
+            translate(-55%, -50%)
+            scale(1.04);
+    }
+
+    50% {
+        transform:
+            translate(-45%, -50%)
+            scale(0.96);
+    }
+
+    75% {
+        transform:
+            translate(-53%, -50%)
+            scale(1.03);
+    }
+
+    100% {
+        transform:
+            translate(-50%, -50%)
+            scale(1);
+    }
+}
+
+
+/* =========================================================
+   BOSS DEFEAT ANIMATION
+========================================================= */
+
+#boss.boss-defeating {
+    animation:
+        boss-defeat
+        1.2s
+        ease-in
+        forwards;
+}
+
+
+@keyframes boss-defeat {
+
+    0% {
+        opacity: 1;
+
+        transform:
+            translate(-50%, -50%)
+            scale(1)
+            rotate(0deg);
+    }
+
+    30% {
+        opacity: 1;
+
+        transform:
+            translate(-50%, -50%)
+            scale(1.15)
+            rotate(-5deg);
+    }
+
+    60% {
+        opacity: 0.7;
+
+        transform:
+            translate(-50%, -40%)
+            scale(0.8)
+            rotate(8deg);
+    }
+
+    100% {
+        opacity: 0;
+
+        transform:
+            translate(-50%, 30%)
+            scale(0)
+            rotate(25deg);
+    }
 }
 
 
@@ -250,6 +618,7 @@ body {
     justify-content: center;
 }
 
+
 #error-screen img {
     width: 100%;
     height: 100%;
@@ -270,22 +639,16 @@ body {
 
 @media (max-width: 600px) {
 
-    /*
-        Previous mobile maximum:
-            150px
-
-        +50%:
-            225px
-    */
-
     .moving-image {
         width: min(45vw, 225px);
         height: min(45vw, 225px);
     }
 
+
     #loading {
         font-size: 20px;
     }
+
 
     #play-button {
         font-size: 23px;
@@ -294,5 +657,41 @@ body {
         min-height: 60px;
 
         padding: 15px 35px;
+    }
+
+
+    #boss-ui {
+        top: 15px;
+
+        width: 88vw;
+    }
+
+
+    #boss-health-container {
+        height: 25px;
+    }
+
+
+    #boss-health-text {
+        font-size: 16px;
+    }
+
+
+    #boss-image {
+        width: 82vw;
+        height: 65vh;
+    }
+
+
+    #boss-text {
+        margin-top: 10px;
+
+        font-size: clamp(
+            25px,
+            8vw,
+            40px
+        );
+
+        letter-spacing: 1px;
     }
 }

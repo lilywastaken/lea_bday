@@ -16,8 +16,10 @@
 
 <body>
 
+    <!-- Background -->
     <div id="background"></div>
 
+    <!-- Moving images -->
     <div id="image-layer"></div>
 
     <!-- Loading message -->
@@ -30,15 +32,80 @@
         PLAY
     </button>
 
+    <!-- Main music -->
     <audio
         id="music"
         src="tunak.mp3"
         preload="auto"
     ></audio>
 
+    <!-- Final boss music -->
+    <audio
+        id="boss-music"
+        src="finalboss.mp3"
+        preload="auto"
+    ></audio>
+
+    <!-- Boss damage sound -->
+    <audio
+        id="hit-sound"
+        src="nyet.mp3"
+        preload="auto"
+    ></audio>
+
+    <!-- Defeated sound -->
+    <audio
+        id="defeated-sound"
+        src="defeated.mp3"
+        preload="auto"
+    ></audio>
+
+    <!-- Boss battle -->
+    <div id="boss-screen">
+
+        <!-- Red arena overlay -->
+        <div id="arena-red-overlay"></div>
+
+        <!-- Boss UI -->
+        <div id="boss-ui">
+
+            <div id="boss-health-container">
+                <div id="boss-health-bar"></div>
+            </div>
+
+            <div id="boss-health-text">
+                100 / 100
+            </div>
+
+        </div>
+
+        <!-- Boss -->
+        <button
+            id="boss"
+            type="button"
+            aria-label="Attack boss"
+        >
+            <img
+                id="boss-image"
+                src="dan1.jpg"
+                alt="Boss"
+            >
+
+            <div id="boss-text">
+                DESTROY YOUR EX
+            </div>
+        </button>
+
+    </div>
+
     <!-- Final screen -->
     <div id="error-screen">
-        <img src="error.png" alt="Error">
+
+        <img
+            src="error.png"
+            alt="Error"
+        >
+
     </div>
 
     <script src="script.js"></script>

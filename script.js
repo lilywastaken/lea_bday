@@ -3,59 +3,79 @@
     LEA BIRTHDAY EXPERIMENT
 ============================================================
 
-    Each number represents ONE moving object.
+    MAIN SEQUENCE
 
-    Example:
+        PLAY
+          |
+          v
+        tunak.mp3
+          |
+          v
+        Objects appear every 4 seconds
+          |
+          v
+        background2.jpg after 30 seconds
+          |
+          v
+        Final object appears
+          |
+          v
+        4 seconds
+          |
+          v
+        tunak.mp3 stops
+          |
+          v
+        finalboss.mp3 starts
+          |
+          v
+        EXACTLY 10 seconds
+          |
+          v
+        DAN BOSS APPEARS
+          |
+          v
+        Click boss
+          |
+          v
+        Damage
+          |
+          +----> dan1.jpg
+          |
+          +----> dan2.jpg
+          |
+          +----> dan3.jpg
+          |
+          +----> dan4.jpg
+          |
+          +----> dan5.jpg
+          |
+          +----> dan6.jpg
+          |
+          +----> dan7.jpg
+          |
+          v
+        Boss reaches 0 HP
+          |
+          v
+        Defeat animation
+          |
+          v
+        defeated.mp3
+          |
+          v
+        defeated.mp3 finishes
+          |
+          v
+        error.png
 
-        1lea.png
-        1lea2.png
-
-    These are two frames of the SAME object.
-
-    The object has:
-
-        - one position
-        - one velocity
-        - constant speed
-        - random starting position
-        - random movement direction
-
-    The image itself is NEVER rotated.
-
-    Frames switch every 0.4 seconds.
-
-
-    LOADING:
-
-        All images are preloaded before PLAY appears.
-
-        There is NO artificial delay.
-
-        If an image fails to load, the exact filename
-        is shown in the loading message.
-
-
-    AFTER PLAY:
-
-        0s       Object #1
-        4s       Object #2
-        8s       Object #3
-        ...
-
-        30s      background2.jpg
-
-        Final object + 4s:
-
-                 music stops
-                 all moving images disappear
-                 error.png fills the screen
 
 ============================================================
 */
 
 
 /* =========================================================
-   IMAGE FILES
+   MOVING OBJECT FILES
 ========================================================= */
 
 const IMAGE_FILES = [
@@ -89,10 +109,9 @@ const IMAGE_FILES = [
     "11chat2.png",
 
     "12copine.png",
-    "12copine2.png",
-
-    "13flupke.png"
+    "12copine2.png"
 ];
+
 
 
 /* =========================================================
@@ -107,17 +126,51 @@ const BACKGROUND_CHANGE_TIME = 30000;
 
 const FINAL_DELAY = 4000;
 
+const SPEED = 2.7;
+
+
+/* =========================================================
+   BOSS SETTINGS
+========================================================= */
+
+const BOSS_MAX_HEALTH = 100;
+
 /*
-    Movement speed.
-
-    Previous:
-        1.8
-
-    Current:
-        2.7
+    Every click does 10 damage.
 */
 
-const SPEED = 2.7;
+const BOSS_DAMAGE_PER_CLICK = 1;
+
+
+/*
+    Boss image for each health stage.
+
+    100 - 91 -> dan1
+    90  - 76 -> dan2
+    75  - 61 -> dan3
+    60  - 46 -> dan4
+    45  - 31 -> dan5
+    30  - 16 -> dan6
+    15  - 1  -> dan7
+*/
+
+const BOSS_IMAGES = [
+    "dan1.jpg",
+    "dan2.jpg",
+    "dan3.jpg",
+    "dan4.jpg",
+    "dan5.jpg",
+    "dan6.jpg",
+    "dan7.jpg"
+];
+
+
+/*
+    The boss appears exactly 10 seconds
+    after finalboss.mp3 starts.
+*/
+
+const BOSS_APPEAR_DELAY = 10000;
 
 
 /* =========================================================
@@ -125,22 +178,87 @@ const SPEED = 2.7;
 ========================================================= */
 
 const imageLayer =
-    document.getElementById("image-layer");
+    document.getElementById(
+        "image-layer"
+    );
+
 
 const background =
-    document.getElementById("background");
+    document.getElementById(
+        "background"
+    );
+
 
 const loading =
-    document.getElementById("loading");
+    document.getElementById(
+        "loading"
+    );
+
 
 const playButton =
-    document.getElementById("play-button");
+    document.getElementById(
+        "play-button"
+    );
+
 
 const errorScreen =
-    document.getElementById("error-screen");
+    document.getElementById(
+        "error-screen"
+    );
+
 
 const music =
-    document.getElementById("music");
+    document.getElementById(
+        "music"
+    );
+
+
+const bossMusic =
+    document.getElementById(
+        "boss-music"
+    );
+
+
+const hitSound =
+    document.getElementById(
+        "hit-sound"
+    );
+
+
+const defeatedSound =
+    document.getElementById(
+        "defeated-sound"
+    );
+
+
+const bossScreen =
+    document.getElementById(
+        "boss-screen"
+    );
+
+
+const boss =
+    document.getElementById(
+        "boss"
+    );
+
+
+const bossImage =
+    document.getElementById(
+        "boss-image"
+    );
+
+
+const bossHealthBar =
+    document.getElementById(
+        "boss-health-bar"
+    );
+
+
+const bossHealthText =
+    document.getElementById(
+        "boss-health-text"
+    );
 
 
 /* =========================================================
@@ -161,37 +279,27 @@ let backgroundTimer = null;
 
 let finalTimer = null;
 
+let bossAppearTimer = null;
+
 let finished = false;
 
 let started = false;
+
+let bossActive = false;
+
+let bossDefeated = false;
+
+let bossHealth = BOSS_MAX_HEALTH;
+
+let currentBossStage = 0;
 
 
 /* =========================================================
    IMAGE PATH
 ========================================================= */
 
-/*
-    IMPORTANT FOR GITHUB PAGES
-
-    Do NOT use:
-
-        encodeURIComponent(filename)
-
-    because filenames such as:
-
-        1lea.png
-
-    do not need encoding.
-
-    Using ./img/ keeps the path relative to the
-    GitHub Pages project.
-
-    Example:
-
-        ./img/1lea.png
-*/
-
 function getImagePath(filename) {
+
     return "./" + filename;
 }
 
@@ -204,23 +312,15 @@ function createGroups() {
 
     const groups = new Map();
 
-    for (const filename of IMAGE_FILES) {
 
-        /*
-            Extract the number at the beginning.
-
-            1lea.png
-                -> 1
-
-            1lea2.png
-                -> 1
-
-            10alexi_pony.png
-                -> 10
-        */
+    for (
+        const filename
+        of IMAGE_FILES
+    ) {
 
         const match =
             filename.match(/^(\d+)/);
+
 
         if (!match) {
 
@@ -232,13 +332,17 @@ function createGroups() {
             continue;
         }
 
+
         const number =
             parseInt(
                 match[1],
                 10
             );
 
-        if (!groups.has(number)) {
+
+        if (
+            !groups.has(number)
+        ) {
 
             groups.set(
                 number,
@@ -246,20 +350,12 @@ function createGroups() {
             );
         }
 
+
         groups
             .get(number)
             .push(filename);
     }
 
-
-    /*
-        Sort frames naturally.
-
-        Example:
-
-            1lea.png
-            1lea2.png
-    */
 
     imageGroups =
         Array.from(
@@ -314,20 +410,52 @@ function naturalSort(a, b) {
 
 function preloadImages() {
 
-    const promises =
+    /*
+        Preload normal moving images.
+    */
+
+    const normalImages =
         IMAGE_FILES.map(
-            filename => {
+            filename =>
+                getImagePath(filename)
+        );
+
+
+    /*
+        Preload boss images too.
+
+        This means there should be no visible
+        delay when changing from dan1 -> dan2 etc.
+    */
+
+    const bossImages =
+        BOSS_IMAGES.map(
+            filename =>
+                getImagePath(filename)
+        );
+
+
+    const allImages = [
+        ...normalImages,
+        ...bossImages,
+
+        /*
+            error.png is also loaded beforehand.
+        */
+
+        "./error.png"
+    ];
+
+
+    const promises =
+        allImages.map(
+            path => {
 
                 return new Promise(
                     resolve => {
 
                         const image =
                             new Image();
-
-                        const path =
-                            getImagePath(
-                                filename
-                            );
 
 
                         image.onload =
@@ -340,7 +468,7 @@ function preloadImages() {
 
                                 resolve({
                                     success: true,
-                                    filename: filename
+                                    path: path
                                 });
                             };
 
@@ -355,19 +483,10 @@ function preloadImages() {
 
                                 resolve({
                                     success: false,
-                                    filename: filename
+                                    path: path
                                 });
                             };
 
-
-                        /*
-                            IMPORTANT:
-
-                            Use the simple relative
-                            GitHub Pages path.
-
-                            No encodeURIComponent().
-                        */
 
                         image.src = path;
                     }
@@ -395,23 +514,19 @@ function preloadImages() {
 
 
             console.log(
-                `${successful.length}/${IMAGE_FILES.length} images loaded.`
+                `${successful.length}/${allImages.length} images loaded.`
             );
 
 
-            /*
-                If even one image is missing,
-                stop loading and tell us exactly
-                which file is the problem.
-            */
-
-            if (failed.length > 0) {
+            if (
+                failed.length > 0
+            ) {
 
                 const failedFiles =
                     failed
                         .map(
                             result =>
-                                result.filename
+                                result.path
                         )
                         .join(", ");
 
@@ -433,6 +548,7 @@ function showPlayButton() {
 
     loading.style.display =
         "none";
+
 
     playButton.style.display =
         "block";
@@ -479,10 +595,10 @@ function startExperiment() {
 
 
     /*
-        Start music directly from the
-        PLAY button interaction.
+        Start main music.
 
-        This is important for mobile browsers.
+        This happens directly from the PLAY click,
+        allowing mobile browsers to permit playback.
     */
 
     music.currentTime = 0;
@@ -506,7 +622,7 @@ function startExperiment() {
 
 
     /*
-        Start animation.
+        Start movement.
     */
 
     animationFrame =
@@ -516,14 +632,14 @@ function startExperiment() {
 
 
     /*
-        First object appears immediately.
+        First object immediately.
     */
 
     addNextObject();
 
 
     /*
-        Add another object every 4 seconds.
+        More objects every 4 seconds.
     */
 
     objectTimer =
@@ -538,7 +654,7 @@ function startExperiment() {
 
 
     /*
-        Change background 30 seconds
+        Background changes 30 seconds
         after PLAY.
     */
 
@@ -554,17 +670,15 @@ function startExperiment() {
 
 
     /*
-        With 13 objects:
+        Final object appears at:
 
-            #1  = 0s
-            #2  = 4s
-            #3  = 8s
-            ...
-            #13 = 48s
+            (13 - 1) * 4
+            = 48 seconds
 
-        Final screen:
+        Boss sequence begins:
 
-            48 + 4 = 52s
+            48 + 4
+            = 52 seconds
     */
 
     const finalObjectTime =
@@ -578,7 +692,7 @@ function startExperiment() {
         setTimeout(
             () => {
 
-                finishExperiment();
+                beginBossSequence();
 
             },
             finalObjectTime + FINAL_DELAY
@@ -601,6 +715,7 @@ function addNextObject() {
         nextGroupIndex >=
         imageGroups.length
     ) {
+
         return;
     }
 
@@ -614,29 +729,21 @@ function addNextObject() {
     nextGroupIndex++;
 
 
-    /*
-        One container = one moving object.
-
-        The image inside can change frames
-        without changing the object's position.
-    */
-
     const container =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
+
 
     container.className =
         "moving-image";
 
 
     const image =
-        document.createElement("img");
+        document.createElement(
+            "img"
+        );
 
-
-    /*
-        FIRST FRAME
-
-        Use the relative GitHub Pages path.
-    */
 
     image.src =
         getImagePath(
@@ -647,10 +754,6 @@ function addNextObject() {
     image.alt =
         group.files[0];
 
-
-    /*
-        Never rotate the image.
-    */
 
     image.style.transform =
         "rotate(0deg)";
@@ -665,10 +768,6 @@ function addNextObject() {
         container
     );
 
-
-    /*
-        Object state.
-    */
 
     const object = {
 
@@ -693,36 +792,20 @@ function addNextObject() {
     };
 
 
-    /*
-        Random initial direction.
-    */
-
     setRandomDirection(
         object
     );
 
-
-    /*
-        Random initial position.
-    */
 
     setRandomPosition(
         object
     );
 
 
-    /*
-        Apply initial position.
-    */
-
     applyTransform(
         object
     );
 
-
-    /*
-        Keep object alive.
-    */
 
     movingObjects.push(
         object
@@ -740,7 +823,9 @@ function addNextObject() {
    RANDOM DIRECTION
 ========================================================= */
 
-function setRandomDirection(object) {
+function setRandomDirection(
+    object
+) {
 
     const angle =
         Math.random() *
@@ -763,10 +848,13 @@ function setRandomDirection(object) {
    RANDOM INITIAL POSITION
 ========================================================= */
 
-function setRandomPosition(object) {
+function setRandomPosition(
+    object
+) {
 
     const width =
         object.container.offsetWidth;
+
 
     const height =
         object.container.offsetHeight;
@@ -799,13 +887,9 @@ function setRandomPosition(object) {
    APPLY POSITION
 ========================================================= */
 
-function applyTransform(object) {
-
-    /*
-        Position only.
-
-        Never rotate the object.
-    */
+function applyTransform(
+    object
+) {
 
     object.container.style.transform =
         `translate3d(
@@ -822,7 +906,11 @@ function applyTransform(object) {
 
 function animate(timestamp) {
 
-    if (finished) {
+    if (
+        finished ||
+        bossActive
+    ) {
+
         return;
     }
 
@@ -856,13 +944,7 @@ function moveObject(
 ) {
 
     /*
-        FRAME SWITCHING
-
-        Every 0.4 seconds.
-
-        Only the image changes.
-
-        The object position does NOT change.
+        Frame switching.
     */
 
     if (
@@ -899,22 +981,20 @@ function moveObject(
 
 
     /*
-        MOVEMENT
+        Movement.
     */
 
     object.x +=
         object.velocityX;
 
+
     object.y +=
         object.velocityY;
 
 
-    /*
-        BOUNDARIES
-    */
-
     const width =
         object.container.offsetWidth;
+
 
     const height =
         object.container.offsetHeight;
@@ -935,7 +1015,7 @@ function moveObject(
 
 
     /*
-        LEFT / RIGHT COLLISION
+        Horizontal collision.
     */
 
     if (
@@ -961,7 +1041,7 @@ function moveObject(
 
 
     /*
-        TOP / BOTTOM COLLISION
+        Vertical collision.
     */
 
     if (
@@ -1001,10 +1081,6 @@ function chooseDirectionFromEdge(
     edge
 ) {
 
-    /*
-        Pick a completely new random angle.
-    */
-
     const angle =
         Math.random() *
         Math.PI *
@@ -1014,14 +1090,10 @@ function chooseDirectionFromEdge(
     let vx =
         Math.cos(angle);
 
+
     let vy =
         Math.sin(angle);
 
-
-    /*
-        Force the new direction back
-        into the viewport.
-    */
 
     if (
         edge === "horizontal"
@@ -1060,11 +1132,6 @@ function chooseDirectionFromEdge(
         }
     }
 
-
-    /*
-        Normalize the vector so the
-        movement speed remains exactly SPEED.
-    */
 
     const magnitude =
         Math.sqrt(
@@ -1122,10 +1189,459 @@ function changeBackground() {
 
 
 /* =========================================================
-   FINISH
+   BEGIN BOSS SEQUENCE
 ========================================================= */
 
-function finishExperiment() {
+function beginBossSequence() {
+    // Stop normal music
+    music.pause();
+    music.currentTime = 0;
+
+    // Remove normal moving images
+    imageLayer.innerHTML = "";
+
+    // Change background to arena
+    background.style.backgroundImage = 'url("./arena.jpg")';
+
+    // Get red overlay
+    const arenaOverlay =
+        document.getElementById("arena-red-overlay");
+
+    // Make sure the overlay starts transparent
+    arenaOverlay.style.transition = "none";
+    arenaOverlay.style.opacity = "0";
+
+    // Force browser to apply opacity 0 first
+    void arenaOverlay.offsetWidth;
+
+    // Restore 10-second transition
+    arenaOverlay.style.transition =
+        "opacity 10s linear";
+
+    // Start final boss music
+    bossMusic.currentTime = 0;
+    bossMusic.play().catch(() => {});
+
+    // Gradually turn arena red
+    arenaOverlay.style.opacity = "0.65";
+
+    // Show boss after exactly 10 seconds
+    setTimeout(() => {
+        showBoss();
+    }, 10000);
+}
+
+/* =========================================================
+   SHOW BOSS
+========================================================= */
+
+function showBoss() {
+
+    if (
+        finished ||
+        bossDefeated
+    ) {
+
+        return;
+    }
+
+
+    bossActive = true;
+
+
+    bossHealth =
+        BOSS_MAX_HEALTH;
+
+
+    currentBossStage = 0;
+
+
+    bossImage.src =
+        getImagePath(
+            BOSS_IMAGES[0]
+        );
+
+
+    bossHealthBar.style.width =
+        "100%";
+
+
+    bossHealthText.textContent =
+        `${bossHealth} / ${BOSS_MAX_HEALTH}`;
+
+
+    boss.classList.remove(
+        "boss-defeating"
+    );
+
+
+    bossScreen.style.display =
+        "flex";
+
+
+    console.log(
+        "Boss appeared."
+    );
+}
+
+
+/* =========================================================
+   BOSS CLICK
+========================================================= */
+
+boss.addEventListener(
+    "click",
+    () => {
+
+        if (
+            !bossActive ||
+            bossDefeated
+        ) {
+
+            return;
+        }
+
+
+        damageBoss();
+    }
+);
+
+
+/* =========================================================
+   DAMAGE BOSS
+========================================================= */
+
+function damageBoss() {
+
+    /*
+        Deal damage.
+    */
+
+    bossHealth =
+        Math.max(
+            0,
+            bossHealth -
+                BOSS_DAMAGE_PER_CLICK
+        );
+
+
+    console.log(
+        "Boss hit.",
+        "HP:",
+        bossHealth
+    );
+
+
+    /*
+        Update life bar.
+    */
+
+    const healthPercent =
+        (
+            bossHealth /
+            BOSS_MAX_HEALTH
+        ) *
+        100;
+
+
+    bossHealthBar.style.width =
+        `${healthPercent}%`;
+
+
+    bossHealthText.textContent =
+        `${bossHealth} / ${BOSS_MAX_HEALTH}`;
+
+
+    /*
+        Play nyet.mp3 on every hit.
+
+        Reset first so repeated clicks
+        always trigger the sound.
+    */
+
+    hitSound.pause();
+
+    hitSound.currentTime = 0;
+
+
+    hitSound.play()
+        .catch(error => {
+
+            console.warn(
+                "nyet.mp3 could not play:",
+                error
+            );
+        });
+
+
+    /*
+        Brief hit animation.
+    */
+
+    boss.classList.remove(
+        "boss-hit"
+    );
+
+
+    /*
+        Force the animation to restart.
+    */
+
+    void boss.offsetWidth;
+
+
+    boss.classList.add(
+        "boss-hit"
+    );
+
+
+    /*
+        Check whether the boss has been defeated.
+    */
+
+    if (
+        bossHealth <= 0
+    ) {
+
+        defeatBoss();
+
+        return;
+    }
+
+
+    /*
+        Determine which image should
+        now be displayed.
+    */
+
+    updateBossImage();
+}
+
+
+/* =========================================================
+   UPDATE BOSS IMAGE
+========================================================= */
+
+function updateBossImage() {
+
+    let newStage;
+
+
+    if (
+        bossHealth >= 91
+    ) {
+
+        newStage = 0;
+
+    } else if (
+        bossHealth >= 76
+    ) {
+
+        newStage = 1;
+
+    } else if (
+        bossHealth >= 61
+    ) {
+
+        newStage = 2;
+
+    } else if (
+        bossHealth >= 46
+    ) {
+
+        newStage = 3;
+
+    } else if (
+        bossHealth >= 31
+    ) {
+
+        newStage = 4;
+
+    } else if (
+        bossHealth >= 16
+    ) {
+
+        newStage = 5;
+
+    } else {
+
+        newStage = 6;
+    }
+
+
+    /*
+        Only change the image if
+        the stage actually changed.
+    */
+
+    if (
+        newStage ===
+        currentBossStage
+    ) {
+
+        return;
+    }
+
+
+    currentBossStage =
+        newStage;
+
+
+    bossImage.src =
+        getImagePath(
+            BOSS_IMAGES[
+                currentBossStage
+            ]
+        );
+
+
+    /*
+        The nyet sound has already been
+        played by damageBoss().
+
+        Therefore every image transition
+        gets exactly one nyet sound.
+    */
+
+    console.log(
+        "Boss changed to:",
+        BOSS_IMAGES[
+            currentBossStage
+        ]
+    );
+}
+
+
+/* =========================================================
+   DEFEAT BOSS
+========================================================= */
+
+function defeatBoss() {
+
+    if (
+        bossDefeated
+    ) {
+
+        return;
+    }
+
+
+    bossDefeated = true;
+
+    bossActive = false;
+
+
+    console.log(
+        "Boss defeated."
+    );
+
+
+    /*
+        Stop accepting clicks.
+    */
+
+    boss.style.pointerEvents =
+        "none";
+
+
+    /*
+        Stop final boss music.
+    */
+
+    bossMusic.pause();
+
+    bossMusic.currentTime = 0;
+
+
+    /*
+        Play defeat animation.
+    */
+
+    boss.classList.remove(
+        "boss-hit"
+    );
+
+
+    void boss.offsetWidth;
+
+
+    boss.classList.add(
+        "boss-defeating"
+    );
+
+
+    /*
+        Wait for the defeat animation
+        to finish before playing defeated.mp3.
+
+        CSS animation = 1.2 seconds.
+    */
+
+    setTimeout(
+        () => {
+
+            bossScreen.style.display =
+                "none";
+
+
+            playDefeatedSound();
+
+        },
+        1200
+    );
+}
+
+
+/* =========================================================
+   PLAY DEFEATED SOUND
+========================================================= */
+
+function playDefeatedSound() {
+
+    console.log(
+        "Playing defeated.mp3."
+    );
+
+
+    defeatedSound.currentTime = 0;
+
+
+    /*
+        When defeated.mp3 ends,
+        show error.png.
+    */
+
+    defeatedSound.onended =
+        () => {
+
+            showErrorScreen();
+        };
+
+
+    defeatedSound.play()
+        .catch(error => {
+
+            console.warn(
+                "defeated.mp3 could not play:",
+                error
+            );
+
+
+            /*
+                If the browser refuses the sound,
+                do not leave the experiment stuck.
+            */
+
+            showErrorScreen();
+        });
+}
+
+
+/* =========================================================
+   SHOW ERROR SCREEN
+========================================================= */
+
+function showErrorScreen() {
 
     if (finished) {
         return;
@@ -1135,13 +1651,11 @@ function finishExperiment() {
     finished = true;
 
 
-    console.log(
-        "Experiment finished."
-    );
+    bossActive = false;
 
 
     /*
-        Stop spawning.
+        Stop everything else.
     */
 
     clearInterval(
@@ -1149,33 +1663,34 @@ function finishExperiment() {
     );
 
 
-    /*
-        Stop timers.
-    */
-
     clearTimeout(
         backgroundTimer
     );
+
 
     clearTimeout(
         finalTimer
     );
 
 
-    /*
-        Stop animation.
-    */
+    clearTimeout(
+        bossAppearTimer
+    );
+
 
     if (animationFrame) {
 
         cancelAnimationFrame(
             animationFrame
         );
+
+        animationFrame = null;
     }
 
 
     /*
-        Stop music completely.
+        Stop all audio except
+        defeated.mp3, which has already ended.
     */
 
     music.pause();
@@ -1183,19 +1698,37 @@ function finishExperiment() {
     music.currentTime = 0;
 
 
+    bossMusic.pause();
+
+    bossMusic.currentTime = 0;
+
+
     /*
-        Remove every moving image.
+        Remove moving objects.
     */
 
     imageLayer.innerHTML = "";
 
 
     /*
-        Show error.png fullscreen.
+        Hide boss.
+    */
+
+    bossScreen.style.display =
+        "none";
+
+
+    /*
+        Finally show error.png.
     */
 
     errorScreen.style.display =
         "flex";
+
+
+    console.log(
+        "Final error screen displayed."
+    );
 }
 
 
@@ -1220,6 +1753,7 @@ window.addEventListener(
             const width =
                 object.container.offsetWidth;
 
+
             const height =
                 object.container.offsetHeight;
 
@@ -1237,11 +1771,6 @@ window.addEventListener(
                     window.innerHeight - height
                 );
 
-
-            /*
-                Keep existing objects
-                inside the new viewport.
-            */
 
             object.x =
                 Math.min(
@@ -1271,38 +1800,27 @@ window.addEventListener(
 
 async function initialize() {
 
-    /*
-        Loading message appears immediately.
-    */
-
     loading.textContent =
         "Loading!!....";
 
 
     try {
 
-        /*
-            Build image groups.
-        */
-
         createGroups();
 
 
         /*
-            Preload every image.
+            Preload:
 
-            There is NO artificial delay.
+                - normal images
+                - dan1.jpg -> dan7.jpg
+                - error.png
 
-            Loading lasts only as long as
-            the images actually need.
+            No artificial loading delay.
         */
 
         await preloadImages();
 
-
-        /*
-            Everything loaded successfully.
-        */
 
         showPlayButton();
 
@@ -1312,13 +1830,6 @@ async function initialize() {
             error
         );
 
-
-        /*
-            Show the exact problem on screen.
-
-            This is particularly useful for
-            diagnosing GitHub Pages paths.
-        */
 
         loading.textContent =
             error.message ||
